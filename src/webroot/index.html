@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AdGuardHome Config</title>
+    <link rel="stylesheet" href="./assets/style.css">
+</head>
+
+<body class="stopped">
+
+    <div id="toast-container" class="toast-wrap"></div>
+
+    <div class="status-line" id="status-container">
+        <span class="dot"></span>
+
+        <span id="status-text" data-i18n="status.checking" class="status-text">
+            Checking...
+        </span>
+
+        <span id="pid-badge" class="hidden pid-badge">
+        </span>
+
+        <span class="spacer"></span>
+
+        <span id="agh-version" class="version-text">
+            v...
+        </span>
+
+        <select id="lang-switch" class="input lang-select-sm">
+            <option value="en">EN</option>
+            <option value="zh">ZH</option>
+        </select>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn btn-primary" id="btn-start" data-i18n="button.start">
+            Start Core
+        </button>
+
+        <button class="btn btn-danger" id="btn-stop" data-i18n="button.stop">
+            Stop Core
+        </button>
+    </div>
+
+    <button class="btn btn-secondary btn-full" id="btn-link-panel" data-i18n="button.panel">
+        Open AdGuardHome Panel
+    </button>
+
+    <div class="tab-btn-row">
+        <button class="tab-btn active" data-tab="settings" data-i18n="tab.settings">
+            Settings
+        </button>
+
+        <button class="tab-btn" data-tab="logs" data-i18n="tab.logs">
+            Logs
+        </button>
+
+        <button class="tab-btn" data-tab="tools" data-i18n="tab.tools">
+            Maintenance
+        </button>
+    </div>
+
+    <div id="tab-settings" class="tab-content active">
+
+        <div class="card">
+
+            <h3 data-i18n="settings.title">
+                Traffic Redirection
+            </h3>
+
+            <div class="setting-row flex-between">
+                <div>
+                    <div data-i18n="settings.enable_iptables">
+                        Enable iptables
+                    </div>
+
+                    <div data-i18n="settings.enable_iptables_desc" class="desc">
+                        Automatically redirect DNS traffic at system level
+                    </div>
+                </div>
+
+                <input type="checkbox" id="conf-enable_iptables" class="checkbox">
+            </div>
+
+            <div class="setting-row flex-between">
+                <div>
+                    <div data-i18n="settings.block_ipv6">
+                        Block IPv6 DNS
+                    </div>
+
+                    <div data-i18n="settings.block_ipv6_desc" class="desc">
+                        Prevent DNS bypass via IPv6
+                    </div>
+                </div>
+
+                <input type="checkbox" id="conf-block_ipv6_dns" class="checkbox">
+            </div>
+
+            <div class="field">
+                <label data-i18n="settings.redir_port">
+                    DNS Redirect Port
+                </label>
+                <input type="number" class="input" id="conf-redir_port" placeholder="5591">
+            </div>
+
+            <div class="field">
+                <label data-i18n="settings.user">
+                    Runtime User (UID)
+                </label>
+                <input type="text" class="input" id="conf-adg_user" placeholder="root">
+            </div>
+
+            <div class="field">
+                <label data-i18n="settings.group">
+                    Runtime Group (GID)
+                </label>
+                <input type="text" class="input" id="conf-adg_group" placeholder="net_raw">
+            </div>
+
+            <button class="btn btn-primary btn-full" id="btn-save" data-i18n="button.save">
+                Save & Apply Configuration
+            </button>
+
+        </div>
+    </div>
+
+    <div id="tab-logs" class="tab-content">
+
+        <div class="btn-row log-btn-row">
+
+            <button class="btn btn-secondary active btn-sm" data-log="bin" data-i18n="logs.core">
+                Core Log
+            </button>
+
+            <button class="btn btn-secondary btn-sm" data-log="module" data-i18n="logs.history">
+                History
+            </button>
+
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-log" data-i18n="logs.refresh">
+                Refresh
+            </button>
+
+        </div>
+
+        <div id="log-content" data-i18n="logs.waiting">
+            Waiting for logs...
+        </div>
+
+    </div>
+
+    <div id="tab-tools" class="tab-content">
+
+        <div class="card">
+
+            <h3 data-i18n="tools.title">
+                System Maintenance
+            </h3>
+
+            <div class="btn-row">
+
+                <button class="btn btn-secondary" id="btn-debug" data-i18n="tools.generate_debug">
+                    Generate Debug Log
+                </button>
+
+                <button class="btn btn-secondary" id="btn-open-debug" data-i18n="tools.open_debug">
+                    Open Debug Log
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="./assets/i18n.js"></script>
+    <script src="./assets/index.js"></script>
+
+</body>
+
+</html>
