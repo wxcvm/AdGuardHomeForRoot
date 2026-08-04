@@ -39,6 +39,9 @@ jobs:
           else
             VER=$(curl -sL https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r '.tag_name')
           fi
+          # VER 保留 v 前缀用于 URL 下载
+          echo "agh_tag=${VER}" >> "$GITHUB_OUTPUT"
+          # 无 v 前缀用于 display
           echo "agh_ver=${VER#v}" >> "$GITHUB_OUTPUT"
           echo "Downloading AdGuardHome $VER"
 
@@ -46,7 +49,8 @@ jobs:
       - name: Download AdGuardHome binary
         run: |
           ARCH="${{ matrix.agh_arch }}"
-          URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/${{ steps.version.outputs.agh_ver || 'v0.107.62' }}/AdGuardHome_${ARCH}.tar.gz"
+          TAG="${{ steps.version.outputs.agh_tag || 'v0.107.62' }}"
+          URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/${TAG}/AdGuardHome_${ARCH}.tar.gz"
           echo "Fetching $URL"
           curl -fSL "$URL" -o agh.tar.gz
           tar -xzf agh.tar.gz
