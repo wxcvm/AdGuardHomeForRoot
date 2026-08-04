@@ -1,0 +1,166 @@
+name: Pack & Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      binary_version:
+        description: 'AdGuardHome version (leave empty for latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    name: Pack ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            agh_arch: linux_arm64
+          - arch: armv7
+            agh_arch: linux_armv7
+
+    steps:
+      # 获取最新 AdGuardHome 版本
+      - name: Get AdGuardHome version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.binary_version }}" ]; then
+            VER="${{ github.event.inputs.binary_version }}"
+          else
+            VER=$(curl -sL https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r '.tag_name')
+          fi
+          echo "agh_ver=${VER#v}" >> "$GITHUB_OUTPUT"
+          echo "Downloading AdGuardHome $VER"
+
+      # 下载 AdGuardHome 二进制
+      - name: Download AdGuardHome binary
+        run: |
+          ARCH="${{ matrix.agh_arch }}"
+          URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/${{ steps.version.outputs.agh_ver || 'v0.107.62' }}/AdGuardHome_${ARCH}.tar.gz"
+          echo "Fetching $URL"
+          curl -fSL "$URL" -o agh.tar.gz
+          tar -xzf agh.tar.gz
+          ls -lh AdGuardHome/AdGuardHome
+
+      # 拉取脚本代码
+      - uses: actions/checkout@v4
+
+      # 组装模块目录
+      - name: Assemble module
+        run: |
+          MODULE_DIR="module"
+          rm -rf "$MODULE_DIR"
+          mkdir -p "$MODULE_DIR/bin"
+
+          # 脚本 + 配置
+          cp src/*.sh "$MODULE_DIR/"
+          cp src/settings.conf "$MODULE_DIR/"
+          cp src/module.prop "$MODULE_DIR/"
+          cp -r src/META-INF "$MODULE_DIR/"
+          cp -r src/scripts "$MODULE_DIR/"
+          cp -r src/webroot "$MODULE_DIR/"
+
+          # AdGuardHome 默认配置 + 过滤规则
+          if [ -f src/bin/AdGuardHome.yaml ]; then
+            cp src/bin/AdGuardHome.yaml "$MODULE_DIR/bin/"
+          fi
+          if [ -d src/bin/data ]; then
+            cp -r src/bin/data "$MODULE_DIR/bin/"
+          fi
+
+          # 二进制
+          cp AdGuardHome/AdGuardHome "$MODULE_DIR/bin/AdGuardHome"
+          chmod +x "$MODULE_DIR/bin/AdGuardHome"
+
+          echo "Module assembled:"
+          find "$MODULE_DIR" -type f | sort
+
+      # 写版本信息
+      - name: Write version info
+        run: |
+          echo "{
+            \"versionCode\": ${{ github.run_number }},
+            \"version\": \"$(date +%Y%m%d)\",
+            \"agi_version\": \"${{ steps.version.outputs.agh_ver }}\",
+            \"built_at\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"
+          }" > module/version.json
+
+      # 打出 zip
+      - name: Package zip
+        run: |
+          cd module
+          zip -r "../AdGuardHomeForRoot_${{ matrix.arch }}.zip" . -x "*.DS_Store" -x "__MACOSX/*"
+          cd ..
+          ls -lh AdGuardHomeForRoot_${{ matrix.arch }}.zip
+
+      # 上传构建产物
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHomeForRoot_${{ matrix.arch }}
+          path: AdGuardHomeForRoot_${{ matrix.arch }}.zip
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: AdGuardHomeForRoot_*
+          merge-multiple: true
+          path: release
+
+      - name: List artifacts
+        run: ls -lh release/
+
+      - name: Delete old tag & release
+        run: |
+          gh release delete latest --yes 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Latest Build (${{ github.run_number }})"
+          tag_name: "latest"
+          body: |
+            ## 🔧 AdGuardHome For Root — 自动构建
+
+            | 架构 | 文件 |
+            |------|------|
+            | arm64 | AdGuardHomeForRoot_arm64.zip |
+            | armv7 | AdGuardHomeForRoot_armv7.zip |
+
+            ### 🆕 本次更新
+            - **代理感知系统** — 自动检测 Clash/V2Ray/NekoBox 等 11 种代理
+            - **DNS 监听三模式** — local_only / lan_only / lan_both
+            - **DNS 测速工具** — Ping + DNS 解析双重评测
+            - **交互控制面板** — `proxy_manager.sh panel`
+            - **完整功能文档** — `docs/functions.md`
+
+            ### 📦 用法
+            1. 下载对应架构的 zip
+            2. Magisk/KernelSU/APatch 中刷入
+            3. 访问 http://127.0.0.1:3000 配置
+
+            **构建时间:** ${{ github.event.repository.updated_at || 'now' }}
+            **构建编号:** #${{ github.run_number }}
+          files: release/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
